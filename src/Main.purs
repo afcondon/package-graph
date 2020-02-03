@@ -2,26 +2,29 @@ module Main where
 
 import Prelude
 
-import Data.Argonaut.Core (Json)
+import Data.Argonaut.Core (Json, fromString)
 import Data.Argonaut.Decode (decodeJson)
-import Data.Argonaut.Parser (jsonParser)
-import Data.Either (Either)
+import Data.Either (Either(..))
+import Data.List (List)
 import Data.Map (Map)
-import Debug.Trace (traceM)
 import Effect (Effect)
+import Effect.Class.Console (logShow)
 import Effect.Console (log)
+import Node.Encoding (Encoding(..))
+import Node.FS.Sync (readTextFile)
 
-foreign import tuples :: Json
 
-type Module = { path :: String, depends :: Array String }
+type Module = { path :: String, depends :: List String }
 
 moduleFromJson :: Json -> Either String Module
 moduleFromJson = decodeJson
 
-
 main :: Effect Unit
 main = do
-  let
-    a = (decodeJson tuples) :: Either String (Map String Module)
-
-  traceM a
+  contents <- readTextFile UTF8 "./graph.json" :: Effect String
+  logShow contents
+  -- let a = (decodeJson $ fromString contents) :: Either String (Map String Module)
+  -- case a of
+  --   (Left err) -> log err
+  --   (Right res) -> logShow res
+  pure unit

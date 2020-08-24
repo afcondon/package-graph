@@ -1,10 +1,6 @@
 // Main.js
-var obj = {
-  'Data.BooleanAlgebra': ['a', 'b'],
-  'Data.Ring': ['c', 'd']
-}
 
-var graph = {
+exports.graphObject = {
   'Data.BooleanAlgebra': {
     path: '.spago/prelude/v4.1.1/src/Data/BooleanAlgebra.purs',
     depends: [
@@ -31,16 +27,30 @@ var graph = {
   }
 }
 
-exports.someObject = {
-  people: [{ name: 'john' }, { name: 'jane' }],
-  common_interests: []
+function propertiesToArray(obj) {
+  const isObject = val =>
+      typeof val === 'object' && !Array.isArray(val);
+
+  const addDelimiter = (a, b) =>
+      a ? `${a}.${b}` : b;
+
+  const paths = (obj = {}, head = '') => {
+      return Object.entries(obj)
+          .reduce((product, [key, value]) => 
+              {
+                  let fullPath = addDelimiter(head, key)
+                  return isObject(value) ?
+                      product.concat(paths(value, fullPath))
+                  : product.concat(fullPath)
+              }, []);
+  }
+
+  return paths(obj);
 }
 
-var toplevel = Object.entries(obj)
-var inner = toplevel.forEach(element => {
-  Object.entries(element) // should get us path / depends
-})
-
-exports.tuples = Object.entries(obj)
+// graphTuples :: A.Json
+// the json that is returned is expected to be of the form M.Map String (Array String)
+exports.graphTuples = Object.entries(exports.graphObject)
+exports.graphArray = propertiesToArray(exports.graphObject)
 
 exports.jsonString = JSON.stringify(exports.tuples)

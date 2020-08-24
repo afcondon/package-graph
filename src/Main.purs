@@ -19,19 +19,13 @@ foreign import graphArray :: A.Json
 -- foreign import someObjectFn :: A.Json
 
 
--- someObject = A.fromObject (M.fromFoldable [
---                 Tuple "people" (A.fromArray [
---                   A.jsonSingletonObject "name" (A.fromString "john"),
---                   A.jsonSingletonObject "name" (A.fromString "jane")
---                 ]),
---                 Tuple "common_interests" A.jsonEmptyArray
---               ])
+
+-- data Package = { path :: String, depends :: Array String }
 
 main :: Effect Unit
 main = do
   let
-    -- a = (decodeJson graphTuples) :: Either String (M.Map String (Array String))
-    a = (decodeJson graphArray) :: Either String (Array String)
+    a = (decodeJson graphTuples) :: Either String (M.Map String A.Json)
     -- b = (decodeJson =<< jsonParser jsonString) :: Either String (M.Map String (Array String))
   traceM a
   -- traceM b

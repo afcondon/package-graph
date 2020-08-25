@@ -14,12 +14,11 @@ import Data.Set as S
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Aff (launchAff_)
-import Effect.Class.Console (log, logShow)
+import Effect.Class.Console (log)
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff (readTextFile)
 
-foreign import graphObject :: A.Json
-foreign import graphTuples :: A.Json
+foreign import fileToTuples :: String -> A.Json
 
 type PackageName = String
 type Path = String -- could level up here with proper platform independent paths 
@@ -55,7 +54,7 @@ main :: Effect Unit
 main = launchAff_ do
   fileContents <- readTextFile UTF8 "./graph.json"
   let
-    packageMap = (decodeJson graphTuples) :: Either String (M.Map PackageName RawPackage)
+    packageMap = (decodeJson $ fileToTuples fileContents) :: Either String (M.Map PackageName RawPackage)
     packageGraph = 
       case packageMap of
         (Right m) -> G.fromMap $ M.fromFoldable $ n' <$> convert m

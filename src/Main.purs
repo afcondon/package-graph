@@ -13,7 +13,10 @@ import Data.Map (Map, fromFoldable, toUnfoldable) as M
 import Data.Set as S
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
+import Effect.Aff (launchAff_)
 import Effect.Class.Console (log, logShow)
+import Node.Encoding (Encoding(..))
+import Node.FS.Aff (readTextFile)
 
 foreign import graphObject :: A.Json
 foreign import graphTuples :: A.Json
@@ -39,10 +42,6 @@ data Dependency = Depend PackageName PackageName
 dependencies :: Package -> L.List Dependency
 dependencies (Package name _ depends) = (Depend name) <$> depends
 
--- | Orphan instance not allowed but this is what's needed in the base library
--- instance showGraph :: Show G.Graph where
---   show graph = show $ G.toMap graph
-
 -- | generic constructor for graph node
 n :: forall k v f. Foldable f => Ord k => Ord v => k -> f v -> Tuple k (Tuple k (S.Set v ))
 n k v = Tuple k (Tuple k (S.fromFoldable v ))
@@ -53,12 +52,13 @@ n' (Package name _ depends) = Tuple name (Tuple name (S.fromFoldable depends ))
 
 
 main :: Effect Unit
-main = do
+main = launchAff_ do
+  fileContents <- readTextFile UTF8 "./graph.json"
   let
     packageMap = (decodeJson graphTuples) :: Either String (M.Map PackageName RawPackage)
     packageGraph = 
       case packageMap of
         (Right m) -> G.fromMap $ M.fromFoldable $ n' <$> convert m
         (Left err) -> G.empty
-  log $ show $ G.toMap packageGraph
+  log $ show $ G.toMap packageGraph -- there's no show instance but since it's really just a newtype over Map....
   log "🍝"

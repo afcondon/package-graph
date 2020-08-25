@@ -5087,12 +5087,16 @@ var PS = {};
   exports["log"] = log;
 })(PS);
 (function(exports) {
-  // Main.js
+  
+  var d3 =require("d3");
 
-
-  exports.fileToTuples = function (file) {
+  exports.fileToTuplesFFI = function (file) {
     var json = JSON.parse(file)
     return Object.entries(json)
+  }
+
+  exports.showGraphFFI = function(graph) {
+    console.log("imagine there was a graph here");
   }
 })(PS["Main"] = PS["Main"] || {});
 (function($PS) {
@@ -5159,7 +5163,7 @@ var PS = {};
           if (v instanceof Data_Either.Left) {
               return Effect_Class_Console.log(dictMonadEffect)(v.value0);
           };
-          throw new Error("Failed pattern match at Main (line 78, column 1 - line 78, column 71): " + [ v.constructor.name ]);
+          throw new Error("Failed pattern match at Main (line 81, column 1 - line 81, column 71): " + [ v.constructor.name ]);
       };
   };
 
@@ -5189,12 +5193,12 @@ var PS = {};
               return "path";
           }))()())(new Data_Symbol.IsSymbol(function () {
               return "depends";
-          }))()())()))($foreign.fileToTuples(v.value0));
+          }))()())()))($foreign.fileToTuplesFFI(v.value0));
       };
       if (v instanceof Data_Either.Left) {
           return new Data_Either.Left(v.value0);
       };
-      throw new Error("Failed pattern match at Main (line 59, column 1 - line 59, column 82): " + [ v.constructor.name ]);
+      throw new Error("Failed pattern match at Main (line 62, column 1 - line 62, column 82): " + [ v.constructor.name ]);
   };
   var extractBody = function (v) {
       if (v instanceof Data_Either.Right) {
@@ -5203,7 +5207,7 @@ var PS = {};
       if (v instanceof Data_Either.Left) {
           return Data_Either.Left.create(Affjax.printError(v.value0));
       };
-      throw new Error("Failed pattern match at Main (line 55, column 1 - line 55, column 84): " + [ v.constructor.name ]);
+      throw new Error("Failed pattern match at Main (line 58, column 1 - line 58, column 84): " + [ v.constructor.name ]);
   };
   var dependencies = function (v) {
       return Data_Functor.map(Data_List_Types.functorList)(Depend.create(v.value0))(v.value2);
@@ -5249,6 +5253,7 @@ var PS = {};
   exports["showGraph"] = showGraph;
   exports["main"] = main;
   exports["showPackage"] = showPackage;
-  exports["fileToTuples"] = $foreign.fileToTuples;
+  exports["fileToTuplesFFI"] = $foreign.fileToTuplesFFI;
+  exports["showGraphFFI"] = $foreign.showGraphFFI;
 })(PS);
 PS["Main"].main();

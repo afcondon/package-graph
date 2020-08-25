@@ -21,7 +21,10 @@ import Effect.Class.Console (log)
 
 -- import Node.FS.Aff (readTextFile)
 
-foreign import fileToTuples :: String -> A.Json
+foreign import fileToTuplesFFI :: String -> A.Json
+foreign import showGraphFFI :: D3Graph -> Unit
+
+type D3Graph = Array { name :: PackageName, depends :: Array PackageName }
 
 type PackageName = String
 type Path = String -- could level up here with proper platform independent paths 
@@ -57,7 +60,7 @@ extractBody (Right { body } ) = Right body
 extractBody (Left err)        = Left $ printError err
 
 makePackageMap :: Either String String -> Either String (M.Map String RawPackage)
-makePackageMap (Right body) = (decodeJson $ fileToTuples body) :: Either String (M.Map PackageName RawPackage)
+makePackageMap (Right body) = (decodeJson $ fileToTuplesFFI body) :: Either String (M.Map PackageName RawPackage)
 makePackageMap (Left err)   = (Left err)
 
 makePackageGraph :: M.Map String RawPackage -> G.Graph String String

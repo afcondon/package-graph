@@ -39,52 +39,26 @@ data Dependency = Depend PackageName PackageName
 dependencies :: Package -> L.List Dependency
 dependencies (Package name _ depends) = (Depend name) <$> depends
 
--- makeGraph :: L.List Dependency -> Graph
--- makeGraph depends = 
+-- | Orphan instance not allowed but this is what's needed in the base library
+-- instance showGraph :: Show G.Graph where
+--   show graph = show $ G.toMap graph
 
+-- | generic constructor for graph node
 n :: forall k v f. Foldable f => Ord k => Ord v => k -> f v -> Tuple k (Tuple k (S.Set v ))
 n k v = Tuple k (Tuple k (S.fromFoldable v ))
 
---       4 - 8
---      /     \
--- 1 - 2 - 3 - 5 - 7
---          \
---           6
-acyclicGraph :: G.Graph Int Int
-acyclicGraph =
-  G.fromMap (
-    M.fromFoldable
-      [ n 1 [ 2 ]
-      , n 2 [ 3, 4 ]
-      , n 3 [ 5, 6 ]
-      , n 4 [ 8 ]
-      , n 5 [ 7 ]
-      , n 6 [ ]
-      , n 7 [ ]
-      , n 8 [ 5 ]
-      ])
-
---       2 - 4
---      / \
--- 5 - 1 - 3
-cyclicGraph :: G.Graph Int Int
-cyclicGraph =
-  G.fromMap (
-    M.fromFoldable
-      [ n 1 [ 2 ]
-      , n 2 [ 3, 4 ]
-      , n 3 [ 1 ]
-      , n 4 [ ]
-      , n 5 [ 1 ]
-      ])
+-- | specialized constructor from Package ADT
+n' :: Package -> Tuple PackageName (Tuple PackageName (S.Set PackageName))
+n' (Package name _ depends) = Tuple name (Tuple name (S.fromFoldable depends ))
 
 
 main :: Effect Unit
 main = do
   let
-    a = (decodeJson graphTuples) :: Either String (M.Map PackageName RawPackage)
-    b = case a of
-      (Right m) -> convert m
-      (Left err) -> mempty
-  logShow b
+    packageMap = (decodeJson graphTuples) :: Either String (M.Map PackageName RawPackage)
+    packageGraph = 
+      case packageMap of
+        (Right m) -> G.fromMap $ M.fromFoldable $ n' <$> convert m
+        (Left err) -> G.empty
+  log $ show $ G.toMap packageGraph
   log "🍝"

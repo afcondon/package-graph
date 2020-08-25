@@ -3,6 +3,10 @@ module Main where
 
 import Prelude
 
+import Affjax (Error, get, printError)
+import Affjax.ResponseFormat as ResponseFormat
+import Affjax.ResponseHeader (ResponseHeader)
+import Affjax.StatusCode (StatusCode)
 import Data.Argonaut.Core (Json) as A
 import Data.Argonaut.Decode (decodeJson)
 import Data.Either (Either(..))
@@ -15,8 +19,8 @@ import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class.Console (log)
-import Node.Encoding (Encoding(..))
-import Node.FS.Aff (readTextFile)
+
+-- import Node.FS.Aff (readTextFile)
 
 foreign import fileToTuples :: String -> A.Json
 
@@ -49,15 +53,30 @@ n k v = Tuple k (Tuple k (S.fromFoldable v ))
 n' :: Package -> Tuple PackageName (Tuple PackageName (S.Set PackageName))
 n' (Package name _ depends) = Tuple name (Tuple name (S.fromFoldable depends ))
 
+extractBody :: forall r. Either Error { body ∷ String | r } -> Either String String
+extractBody (Right { body } ) = Right body
+extractBody (Left err)        = Left $ printError err
+
+makePackageMap :: Either String String -> Either String (M.Map String RawPackage)
+makePackageMap (Right body) = (decodeJson $ fileToTuples body) :: Either String (M.Map PackageName RawPackage)
+makePackageMap (Left err)   = (Left err)
+
+makePackageGraph :: Either String (M.Map String RawPackage) -> Either String (G.Graph String String)
+makePackageGraph packageMap = do
+  theMap <- packageMap
+  let converted = n' <$> convert theMap
+      graph = G.fromMap $ M.fromFoldable $ converted
+  pure graph
+
+makeShowGraph :: Either String (G.Graph String String) -> String
+makeShowGraph (Right graph) = show $ G.toMap graph
+makeShowGraph (Left err)    = err
 
 main :: Effect Unit
-main = launchAff_ do
-  fileContents <- readTextFile UTF8 "./graph.json"
-  let
-    packageMap = (decodeJson $ fileToTuples fileContents) :: Either String (M.Map PackageName RawPackage)
-    packageGraph = 
-      case packageMap of
-        (Right m) -> G.fromMap $ M.fromFoldable $ n' <$> convert m
-        (Left err) -> G.empty
-  log $ show $ G.toMap packageGraph -- there's no show instance but since it's really just a newtype over Map....
+main = launchAff_ do -- Aff 
+  result <- get ResponseFormat.string "http://localhost:1234/graph.json"
+  let body = extractBody result
+      pmap = makePackageMap body
+      pgraph = makePackageGraph pmap
+  log $ makeShowGraph pgraph
   log "🍝"

@@ -123,6 +123,14 @@ let upstream =
 
 let overrides = { metadata = upstream.metadata // { version = "v0.13.5" } }
 
-let additions = {=}
+let additions =
+      { graph =
+          { dependencies = ["catenable-lists"]
+          , repo = 
+            "https://github.com/colehaus/purescript-graphs.git"
+          , version = 
+            "v7.0.0"
+          }
+      }
 
 in  upstream // overrides // additions

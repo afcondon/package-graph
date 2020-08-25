@@ -1,45 +1,90 @@
 -- Main.purs
 module Main where
 
-import Data.Graph
 import Prelude
 
-import Control.Monad.List.Trans (singleton)
-import Data.Argonaut.Core (Json, fromArray, fromObject, fromString, jsonEmptyArray, jsonSingletonObject) as A
+import Data.Argonaut.Core (Json) as A
 import Data.Argonaut.Decode (decodeJson)
-import Data.Argonaut.Parser (jsonParser)
-import Data.Array as Array
 import Data.Either (Either(..))
-import Data.Map (Map, fromFoldable, keys, lookup) as M
+import Data.Foldable (class Foldable)
+import Data.Graph as G
+import Data.List (List, fromFoldable) as L
+import Data.Map (Map, fromFoldable, toUnfoldable) as M
+import Data.Set as S
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
-import Effect.Class.Console (log)
+import Effect.Class.Console (log, logShow)
 
 foreign import graphObject :: A.Json
 foreign import graphTuples :: A.Json
 
 type PackageName = String
 type Path = String -- could level up here with proper platform independent paths 
-type Package = { path :: Path, depends :: Array PackageName }
+type RawPackage = { path :: Path, depends :: Array PackageName }
+data Package = Package PackageName Path (L.List PackageName)
 
-type PathsMap = M.Map PackageName Path
-type Dependencies = M.Map PackageName (Array PackageName)
+instance showPackage :: Show Package where
+  show (Package name path deps) = name
 
-dependencies :: Package -> Array PackageName
-dependencies { depends } = depends
+convert :: M.Map PackageName RawPackage -> L.List Package
+convert packageMap = convert' <$> tuples
+  where
+    tuples :: L.List (Tuple PackageName RawPackage)
+    tuples = M.toUnfoldable packageMap
+    convert' :: (Tuple PackageName RawPackage) -> Package
+    convert' (Tuple k v) = Package k v.path (L.fromFoldable v.depends)
 
-dependenciesMap :: M.Map PackageName Package -> M.Map PackageName (Array PackageName)
-dependenciesMap = map dependencies
+data Dependency = Depend PackageName PackageName
 
--- makeGraph :: Array (Tuple String Package) -> Array String
--- makeGraph tuples = 
+dependencies :: Package -> L.List Dependency
+dependencies (Package name _ depends) = (Depend name) <$> depends
+
+-- makeGraph :: L.List Dependency -> Graph
+-- makeGraph depends = 
+
+n :: forall k v f. Foldable f => Ord k => Ord v => k -> f v -> Tuple k (Tuple k (S.Set v ))
+n k v = Tuple k (Tuple k (S.fromFoldable v ))
+
+--       4 - 8
+--      /     \
+-- 1 - 2 - 3 - 5 - 7
+--          \
+--           6
+acyclicGraph :: G.Graph Int Int
+acyclicGraph =
+  G.fromMap (
+    M.fromFoldable
+      [ n 1 [ 2 ]
+      , n 2 [ 3, 4 ]
+      , n 3 [ 5, 6 ]
+      , n 4 [ 8 ]
+      , n 5 [ 7 ]
+      , n 6 [ ]
+      , n 7 [ ]
+      , n 8 [ 5 ]
+      ])
+
+--       2 - 4
+--      / \
+-- 5 - 1 - 3
+cyclicGraph :: G.Graph Int Int
+cyclicGraph =
+  G.fromMap (
+    M.fromFoldable
+      [ n 1 [ 2 ]
+      , n 2 [ 3, 4 ]
+      , n 3 [ 1 ]
+      , n 4 [ ]
+      , n 5 [ 1 ]
+      ])
 
 
 main :: Effect Unit
 main = do
   let
-    a = (decodeJson graphTuples) :: Either String (M.Map PackageName Package)
+    a = (decodeJson graphTuples) :: Either String (M.Map PackageName RawPackage)
     b = case a of
-      (Right m) -> dependenciesMap m
+      (Right m) -> convert m
       (Left err) -> mempty
+  logShow b
   log "🍝"

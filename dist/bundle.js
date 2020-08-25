@@ -5151,6 +5151,17 @@ var PS = {};
   var showPackage = new Data_Show.Show(function (v) {
       return v.value0;
   });
+  var showGraph = function (dictMonadEffect) {
+      return function (v) {
+          if (v instanceof Data_Either.Right) {
+              return Effect_Class_Console.log(dictMonadEffect)(v.value0);
+          };
+          if (v instanceof Data_Either.Left) {
+              return Effect_Class_Console.log(dictMonadEffect)(v.value0);
+          };
+          throw new Error("Failed pattern match at Main (line 78, column 1 - line 78, column 71): " + [ v.constructor.name ]);
+      };
+  };
 
   // | specialized constructor from Package ADT
   var n$prime = function (v) {
@@ -5169,14 +5180,8 @@ var PS = {};
           };
       };
   };
-  var makeShowGraph = function (v) {
-      if (v instanceof Data_Either.Right) {
-          return Data_Show.show(Data_Map_Internal.showMap(Data_Show.showString)(Data_Tuple.showTuple(Data_Show.showString)(Data_Set.showSet(Data_Show.showString))))(Data_Graph.toMap(v.value0));
-      };
-      if (v instanceof Data_Either.Left) {
-          return v.value0;
-      };
-      throw new Error("Failed pattern match at Main (line 71, column 1 - line 71, column 65): " + [ v.constructor.name ]);
+  var makeShowGraph = function (graph) {
+      return Data_Show.show(Data_Map_Internal.showMap(Data_Show.showString)(Data_Tuple.showTuple(Data_Show.showString)(Data_Set.showSet(Data_Show.showString))))(Data_Graph.toMap(graph));
   };
   var makePackageMap = function (v) {
       if (v instanceof Data_Either.Right) {
@@ -5189,7 +5194,7 @@ var PS = {};
       if (v instanceof Data_Either.Left) {
           return new Data_Either.Left(v.value0);
       };
-      throw new Error("Failed pattern match at Main (line 60, column 1 - line 60, column 82): " + [ v.constructor.name ]);
+      throw new Error("Failed pattern match at Main (line 59, column 1 - line 59, column 82): " + [ v.constructor.name ]);
   };
   var extractBody = function (v) {
       if (v instanceof Data_Either.Right) {
@@ -5198,7 +5203,7 @@ var PS = {};
       if (v instanceof Data_Either.Left) {
           return Data_Either.Left.create(Affjax.printError(v.value0));
       };
-      throw new Error("Failed pattern match at Main (line 56, column 1 - line 56, column 84): " + [ v.constructor.name ]);
+      throw new Error("Failed pattern match at Main (line 55, column 1 - line 55, column 84): " + [ v.constructor.name ]);
   };
   var dependencies = function (v) {
       return Data_Functor.map(Data_List_Types.functorList)(Depend.create(v.value0))(v.value2);
@@ -5211,17 +5216,22 @@ var PS = {};
       return Data_Functor.map(Data_List_Types.functorList)(convert$prime)(tuples);
   };
   var makePackageGraph = function (packageMap) {
-      return Control_Bind.bind(Data_Either.bindEither)(packageMap)(function (theMap) {
-          var converted = Data_Functor.map(Data_List_Types.functorList)(n$prime)(convert(theMap));
-          var graph = Data_Graph.fromMap(Data_Map_Internal.fromFoldable(Data_Ord.ordString)(Data_List_Types.foldableList)(converted));
-          return Control_Applicative.pure(Data_Either.applicativeEither)(graph);
+      var converted = Data_Functor.map(Data_List_Types.functorList)(n$prime)(convert(packageMap));
+      var graph = Data_Graph.fromMap(Data_Map_Internal.fromFoldable(Data_Ord.ordString)(Data_List_Types.foldableList)(converted));
+      return graph;
+  };
+  var allInOne = function (body) {
+      return Control_Bind.bind(Data_Either.bindEither)(makePackageMap(body))(function (pmap) {
+          var pgraph = makePackageGraph(pmap);
+          return Control_Applicative.pure(Data_Either.applicativeEither)(makeShowGraph(pgraph));
       });
   };
+
+  // fromBodyToString :: forall r. Either Error { body :: String | r } 
   var main = Effect_Aff.launchAff_(Control_Bind.bind(Effect_Aff.bindAff)(Affjax.get(Affjax_ResponseFormat.string)("http://localhost:1234/graph.json"))(function (result) {
       var body = extractBody(result);
-      var pmap = makePackageMap(body);
-      var pgraph = makePackageGraph(pmap);
-      return Control_Bind.discard(Control_Bind.discardUnit)(Effect_Aff.bindAff)(Effect_Class_Console.log(Effect_Aff.monadEffectAff)(makeShowGraph(pgraph)))(function () {
+      var stringRep = allInOne(body);
+      return Control_Bind.discard(Control_Bind.discardUnit)(Effect_Aff.bindAff)(showGraph(Effect_Aff.monadEffectAff)(stringRep))(function () {
           return Effect_Class_Console.log(Effect_Aff.monadEffectAff)("\ud83c\udf5d");
       });
   }));
@@ -5235,6 +5245,8 @@ var PS = {};
   exports["makePackageMap"] = makePackageMap;
   exports["makePackageGraph"] = makePackageGraph;
   exports["makeShowGraph"] = makeShowGraph;
+  exports["allInOne"] = allInOne;
+  exports["showGraph"] = showGraph;
   exports["main"] = main;
   exports["showPackage"] = showPackage;
   exports["fileToTuples"] = $foreign.fileToTuples;

@@ -5,8 +5,6 @@ import Prelude
 
 import Affjax (Error, get, printError)
 import Affjax.ResponseFormat as ResponseFormat
-import Affjax.ResponseHeader (ResponseHeader)
-import Affjax.StatusCode (StatusCode)
 import Data.Argonaut.Core (Json) as A
 import Data.Argonaut.Decode (decodeJson)
 import Data.Either (Either(..))
@@ -18,6 +16,7 @@ import Data.Set as S
 import Data.Tuple (Tuple(..))
 import Effect (Effect)
 import Effect.Aff (launchAff_)
+import Effect.Class (class MonadEffect)
 import Effect.Class.Console (log)
 
 -- import Node.FS.Aff (readTextFile)
@@ -61,22 +60,30 @@ makePackageMap :: Either String String -> Either String (M.Map String RawPackage
 makePackageMap (Right body) = (decodeJson $ fileToTuples body) :: Either String (M.Map PackageName RawPackage)
 makePackageMap (Left err)   = (Left err)
 
-makePackageGraph :: Either String (M.Map String RawPackage) -> Either String (G.Graph String String)
-makePackageGraph packageMap = do
-  theMap <- packageMap
-  let converted = n' <$> convert theMap
+makePackageGraph :: M.Map String RawPackage -> G.Graph String String
+makePackageGraph packageMap =
+  let converted = n' <$> convert packageMap
       graph = G.fromMap $ M.fromFoldable $ converted
-  pure graph
+  in graph
 
-makeShowGraph :: Either String (G.Graph String String) -> String
-makeShowGraph (Right graph) = show $ G.toMap graph
-makeShowGraph (Left err)    = err
+makeShowGraph :: G.Graph String String -> String
+makeShowGraph graph = show $ G.toMap graph
 
+allInOne :: Either String String -> Either String String
+allInOne body = do
+  pmap <- makePackageMap body
+  let pgraph = makePackageGraph pmap
+  pure $ makeShowGraph pgraph
+
+showGraph :: forall m. MonadEffect m => Either String String -> m Unit
+showGraph (Right graph) = log graph
+showGraph (Left err)    = log err
+
+-- fromBodyToString :: forall r. Either Error { body :: String | r } 
 main :: Effect Unit
 main = launchAff_ do -- Aff 
   result <- get ResponseFormat.string "http://localhost:1234/graph.json"
   let body = extractBody result
-      pmap = makePackageMap body
-      pgraph = makePackageGraph pmap
-  log $ makeShowGraph pgraph
+      stringRep = allInOne body
+  showGraph stringRep
   log "🍝"

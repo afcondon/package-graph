@@ -8,9 +8,15 @@ exports.fileToTuplesFFI = function (file) {
   return Object.entries(json)
 }
 
-exports.showGraphFFI = function(graph) {
+exports.showGraphFFI = function(width, height, graph) {
 // initialize the DOM and make initial selections
-  var svg = d3.selectAll('div#app').append('svg').attr('id', 'forceSVG').append('g').attr('class', 'forceGroup')
+  var svg = d3.selectAll('div#app')
+              .append('svg')
+              .attr('id', 'forceSVG')
+              .attr('width', width)
+              .attr('height', height)
+              .append('g')
+              .attr('class', 'forceGroup')
   lineSelection = svg.append('g').attr('class', 'forcelinks').selectAll('line')
   circleSelection = svg.append('g').attr('class', 'forcenodes').selectAll('circle')
 // initialize the simulation
@@ -25,22 +31,25 @@ exports.showGraphFFI = function(graph) {
 // now the data join
   lineSelection = lineSelection
     .data(graph.links, d => d.id)
-    .join(enter => enter.append('line'))
+    .join(enter => enter.append('line').attr('stroke', 'gray').attr('stroke-width', 0.2))
   circleSelection = circleSelection 
     .data(graph.nodes, d => d.id)
     .join(enter => 
         enter.append('circle')
-             .attr('r', 10)
+             .attr('r', 5)
              .attr('class', 'force')
-             .attr('fill', 'none')
+             .attr('fill', 'gray')
              .attr('stroke', 'blue') )
 // mark all nodes as (x,y) == NaN, so that D3 will position them
-  provokePhylotaxis(graph)
+  // provokePhylotaxis(graph)
 // kick off an intial simulation
   simulation.nodes(graph.nodes)
-            .force('collision', d3.forceCollide(15))
+            .force("charge", d3.forceManyBody().strength(-100))
+            .force('collision', d3.forceCollide(30))
             .force('center', d3.forceCenter(400,400))
+            .force('link', d3.forceLink().id(d => d.id).links(graph.links).strength(1))
             .on('tick', normalTick)
+  
 }
 
 var normalTick = function () {

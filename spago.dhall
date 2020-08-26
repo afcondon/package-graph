@@ -5,6 +5,7 @@ You can edit this file as you like.
 { name = "my-project"
 , dependencies =
   [ "aff"
+  , "affjax"
   , "argonaut"
   , "catenable-lists"
   , "console"
@@ -16,7 +17,7 @@ You can edit this file as you like.
   , "node-fs-aff"
   , "psci-support"
   , "validation"
-  , "affjax"
+  , "web-html"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]

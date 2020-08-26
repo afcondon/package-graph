@@ -10,6 +10,7 @@ import Data.Argonaut.Decode (decodeJson)
 import Data.Array (concatMap, fromFoldable)
 import Data.Either (Either(..))
 import Data.Foldable (class Foldable)
+import Data.Function.Uncurried (Fn3, runFn3)
 import Data.Graph as G
 import Data.List (List, fromFoldable) as L
 import Data.Map (Map, fromFoldable, toUnfoldable) as M
@@ -17,13 +18,16 @@ import Data.Set as S
 import Data.Tuple (Tuple(..), fst)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
-import Effect.Class (class MonadEffect)
+import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Class.Console (log)
+import Web.HTML (Window, window)
+import Web.HTML.HTMLDocument (body, title)
+import Web.HTML.Window (alert, confirm, document, innerHeight, innerWidth, open, outerHeight, outerWidth, scrollX, scrollY)
 
 -- import Node.FS.Aff (readTextFile)
 
 foreign import fileToTuplesFFI :: String -> A.Json
-foreign import showGraphFFI :: forall a b. D3Graph a b -> Unit
+foreign import showGraphFFI :: forall a b. Fn3 Int Int (D3Graph a b) Unit
 
 type D3Link a b = { source :: b, target :: b }
 type D3Graph a b = { 
@@ -94,15 +98,26 @@ allInOne body = do
   let pgraph = makePackageGraph pmap
   pure $ Tuple pgraph (makeShowGraph pgraph)
 
-showGraph :: forall m. MonadEffect m => Either String (Tuple (G.Graph PackageName PackageName) String) -> m Unit
-showGraph (Right graph) = pure $ showGraphFFI $ getD3Graph $ fst graph
-showGraph (Left err)    = log err
+showGraph :: forall m. Tuple Int Int -> MonadEffect m => Either String (Tuple (G.Graph PackageName PackageName) String) -> m Unit
+showGraph (Tuple width height) (Right graph)
+  = pure $ runFn3 showGraphFFI width height $ getD3Graph $ fst graph
+showGraph _ (Left err)
+  = log err
+
+getWindowWidthHeight :: Effect (Tuple Int Int)
+getWindowWidthHeight = do
+  win <- window
+  width <- innerWidth win
+  height <- innerHeight win
+  pure $ Tuple width height
+
 
 -- fromBodyToString :: forall r. Either Error { body :: String | r } 
 main :: Effect Unit
 main = launchAff_ do -- Aff 
+  widthHeight <- liftEffect getWindowWidthHeight
   result <- get ResponseFormat.string "http://localhost:1234/graph.json"
   let body = extractBody result
       graph = allInOne body
-  showGraph graph
+  showGraph widthHeight graph
   log "🍝"

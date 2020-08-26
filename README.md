@@ -8,4 +8,4 @@ it's enough to `spago install`, `spago bundle-app ; mv index.js dist/bundle.js` 
 
 # generating `graph.json`
 
-a note to myself as much as anything - `purs graph \`spago sources\` > dist/graph.json` seems to do the trick
+a note to myself as much as anything - ``purs graph `spago sources` > dist/graph.json`` seems to do the trick

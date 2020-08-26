@@ -15,3 +15,9 @@ it's enough to `spago install`, `spago bundle-app ; mv index.js dist/bundle.js` 
 # generating `graph.json`
 
 a note to myself as much as anything - ``purs graph `spago sources` > dist/graph.json`` seems to do the trick
+
+# future work
+
+there are two obvious directions to pursue here
+ * improving this simple example by actually processing the graph so that the resulting D3 vis is actually interesting in some way
+ * parsing something like the `CoreFn` output in order to get a call level graph instead of a package level one

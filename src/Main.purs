@@ -7,13 +7,14 @@ import Affjax (Error, get, printError)
 import Affjax.ResponseFormat as ResponseFormat
 import Data.Argonaut.Core (Json) as A
 import Data.Argonaut.Decode (decodeJson)
+import Data.Array (concatMap, fromFoldable)
 import Data.Either (Either(..))
 import Data.Foldable (class Foldable)
 import Data.Graph as G
 import Data.List (List, fromFoldable) as L
 import Data.Map (Map, fromFoldable, toUnfoldable) as M
 import Data.Set as S
-import Data.Tuple (Tuple(..))
+import Data.Tuple (Tuple(..), fst)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (class MonadEffect)
@@ -22,9 +23,24 @@ import Effect.Class.Console (log)
 -- import Node.FS.Aff (readTextFile)
 
 foreign import fileToTuplesFFI :: String -> A.Json
-foreign import showGraphFFI :: D3Graph -> Unit
+foreign import showGraphFFI :: forall a b. D3Graph a b -> Unit
 
-type D3Graph = Array { name :: PackageName, depends :: Array PackageName }
+type D3Link a b = { source :: b, target :: b }
+type D3Graph a b = { 
+    nodes :: Array { id :: a }
+  , links :: Array (D3Link a b)
+}
+
+getD3Graph :: G.Graph PackageName PackageName -> D3Graph PackageName PackageName
+getD3Graph graph = 
+  let
+    gmapTuples :: Array (Tuple PackageName (S.Set PackageName))
+    gmapTuples = fromFoldable $ G.toMap graph
+    tupleToLinks :: Tuple PackageName (S.Set PackageName) -> Array (D3Link PackageName PackageName)
+    tupleToLinks (Tuple name connections) = (\l -> { source: name, target: l }) <$> fromFoldable connections
+  in
+    { nodes: (\n -> { id: n }) <$> (fst <$> gmapTuples)
+    , links: concatMap tupleToLinks gmapTuples }
 
 type PackageName = String
 type Path = String -- could level up here with proper platform independent paths 
@@ -72,14 +88,14 @@ makePackageGraph packageMap =
 makeShowGraph :: G.Graph String String -> String
 makeShowGraph graph = show $ G.toMap graph
 
-allInOne :: Either String String -> Either String String
+allInOne :: Either String String -> Either String (Tuple (G.Graph PackageName PackageName) String)
 allInOne body = do
   pmap <- makePackageMap body
   let pgraph = makePackageGraph pmap
-  pure $ makeShowGraph pgraph
+  pure $ Tuple pgraph (makeShowGraph pgraph)
 
-showGraph :: forall m. MonadEffect m => Either String String -> m Unit
-showGraph (Right graph) = log graph
+showGraph :: forall m. MonadEffect m => Either String (Tuple (G.Graph PackageName PackageName) String) -> m Unit
+showGraph (Right graph) = pure $ showGraphFFI $ getD3Graph $ fst graph
 showGraph (Left err)    = log err
 
 -- fromBodyToString :: forall r. Either Error { body :: String | r } 
@@ -87,6 +103,6 @@ main :: Effect Unit
 main = launchAff_ do -- Aff 
   result <- get ResponseFormat.string "http://localhost:1234/graph.json"
   let body = extractBody result
-      stringRep = allInOne body
-  showGraph stringRep
+      graph = allInOne body
+  showGraph graph
   log "🍝"
